@@ -1,10 +1,11 @@
 # Phantom.JIT
-Phantom.Code extension providing Just-In-Time asm x64 compilation based on LLVM
+**[Phantom.Code](https://github.com/vlmillet/Phantom.Code)** extension providing Just-In-Time asm x64 compilation based on LLVM 
+(see my related project  **[LLVM JIT PDB](https://github.com/vlmillet/llvmjitpdb)** for how on-the-fly PDB debugging is done inside LLVM.
 
 # Installation
-First download, clone or fork [Phantom](https://github.com/vlmillet/Phantom) and [Phantom.Code](https://github.com/vlmillet/Phantom.Code).
+First download, clone or fork **[Phantom](https://github.com/vlmillet/Phantom)** and **[Phantom.Code](https://github.com/vlmillet/Phantom.Code)**.
 
 Then just copy (or mklink) every content of this repo to your **Phantom** folder.
 
 # Running
-I invite you to explore **HelloWorld.JIT** sample to have an idea of how it can be setup to quickly build powerful debuggable C++ at run-time.
+Just explore, compile, run **HelloWorld.JIT** sample, put breakpoints inside the **HelloWorld.Jit.cpplite** file and see how it works ! Have fun !
