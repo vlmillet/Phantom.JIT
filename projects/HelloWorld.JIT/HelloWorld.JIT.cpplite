@@ -1,0 +1,59 @@
+import phantom.lang.Class;
+import phantom.lang.Application;
+import phantom.lang.CppLite;
+import phantom.String;
+
+class MyClass
+{
+public:
+	const char* HelloWorld()
+	{
+		helloWorldTriggered = true;
+		return "HelloWorld !";
+	}
+
+protected:
+	bool helloWorldTriggered = false;
+};
+
+int main(int argc, char** argv)
+{
+	// find the class by full qualified name through the Application singleton (which exists only during Main scope)
+	auto metaClass = classof(MyClass);
+
+	// use RAII + meta class to build a temporary instance on the stack
+
+	auto instance = metaClass->allocate(); // alloc instance memory
+
+	metaClass->construct(instance); // construct instance
+
+	// get the value of the 'helloWorldTriggered' field
+
+	bool result = false;
+
+
+	while (!result)
+	{
+		const char* helloWorldTxt = nullptr;
+
+		// invoke the 'HelloWorld()' method
+		metaClass->getMethod("HelloWorld()")->invoke(instance, nullptr, &helloWorldTxt);
+
+		// get the 'helloWorldTriggered' field value to 'result'
+		metaClass->getField("helloWorldTriggered")->getValue(instance, &result);
+
+		// use runtime expression evaluation to build some C++ expression ..
+		auto cppexp = CppLite::Get()->expression(String("HelloWorldPrint(\"") + helloWorldTxt + "\")");
+		
+		// .. and evaluate it
+		assert(cppexp);
+
+		cppexp->eval();
+	}
+
+	metaClass->destroy(instance); // construct instance
+
+	metaClass->deallocate(instance); // free instance memory
+
+	return 0;
+}
