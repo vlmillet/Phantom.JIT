@@ -1,6 +1,6 @@
 # Phantom.JIT
 **[Phantom.Code](https://github.com/vlmillet/Phantom.Code)** extension providing Just-In-Time asm x64 compilation based on LLVM 
-(see my related project  **[LLVM JIT PDB](https://github.com/vlmillet/llvmjitpdb)** for how on-the-fly PDB debugging is done inside LLVM.
+(see my related project  **[LLVM JIT PDB](https://github.com/vlmillet/llvmjitpdb)** for how on-the-fly PDB debugging is done inside LLVM).
 
 # Installation
 First download, clone or fork **[Phantom](https://github.com/vlmillet/Phantom)** and **[Phantom.Code](https://github.com/vlmillet/Phantom.Code)**.
