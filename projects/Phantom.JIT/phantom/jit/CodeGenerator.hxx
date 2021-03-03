@@ -23,7 +23,8 @@
 #include <phantom/constructor>
 #include <phantom/friend>
 
-namespace phantom { namespace jit {
+namespace phantom {
+namespace jit {
 PHANTOM_PACKAGE("phantom.jit")
     PHANTOM_SOURCE("CodeGenerator")
 
@@ -46,9 +47,9 @@ PHANTOM_PACKAGE("phantom.jit")
             .method<void(), virtual_|override_>("end", &_::end)
             .method<uint() const>("getPass", &_::getPass)
             .method<::phantom::lang::DebugInformation *(), virtual_|override_>("createDebugInformation", &_::createDebugInformation)
-            .method<void(lang::DebugInformation*), virtual_|override_>("destroyDebugInformation", &_::destroyDebugInformation)
+            .method<void(::phantom::lang::DebugInformation *), virtual_|override_>("destroyDebugInformation", &_::destroyDebugInformation)
             .method<::phantom::lang::ExecutionContext *() const, virtual_>("createExecutionContext", &_::createExecutionContext)
-            .method<void(lang::ExecutionContext*) const, virtual_>("destroyExecutionContext", &_::destroyExecutionContext)
+            .method<void(::phantom::lang::ExecutionContext *) const, virtual_>("destroyExecutionContext", &_::destroyExecutionContext)
         
         .protected_()
             .method<Error(uint), virtual_|override_>("compile", &_::compile)
