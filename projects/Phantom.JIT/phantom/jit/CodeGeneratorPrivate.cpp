@@ -101,6 +101,8 @@
 #    include <psapi.h>
 #endif
 
+#include "session.h"
+
 #include <iostream>
 #include <phantom/lang/InitializerListExpression.h>
 #include <phantom/lang/TemporaryObjectDestructionExpression.h>

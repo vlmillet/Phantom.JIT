@@ -67,9 +67,24 @@ phantom::String GUIDToText(llvm::codeview::GUID const& guid)
 PHANTOM_STRUCT(Value){};
 PHANTOM_STRUCT(Label){};
 
-phantom::String sessionFolder()
+namespace
 {
-    return phantom::Path::TempFolder().childPath("Phantom.Jit.Sessions").genericString();
+phantom::String g_session_id;
+}
+
+PHANTOM_EXPORT_PHANTOM_JIT phantom::String sessionFolder()
+{
+    if (g_session_id.empty())
+    {
+        char buffer[256];
+        phantom::random::str(buffer);
+    }
+    return phantom::Path::TempFolder().childPath("Phantom.JIT.Sessions").childPath(g_session_id).genericString();
+}
+
+PHANTOM_EXPORT_PHANTOM_JIT void setSessionId(phantom::String _session_id)
+{
+    g_session_id = _session_id;
 }
 
 ArgumentPassingMode GetArgumentPassingMode(Type* a_pType)
