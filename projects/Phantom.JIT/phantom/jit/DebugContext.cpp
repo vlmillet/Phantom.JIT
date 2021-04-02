@@ -323,11 +323,18 @@ llvm::DIScope* DebugContext::getOrCreateDIScope(phantom::lang::LanguageElement* 
             else
             {
                 CodeGenerator* codeGen = phantom::Object::Cast<CodeGenerator>(Compiler::Get()->getCodeGenerator(pMod));
-                if (auto debugCtx = codeGen->m_private->m_Context.m_pDebugContext)
+                if (codeGen)
                 {
-                    name = phantom::Path(debugCtx->m_pDebugDllMemMgr->getDllPath().c_str()).filename();
-                    path = StringView(debugCtx->m_pDebugDllMemMgr->getOutputPath().data(),
-                                      debugCtx->m_pDebugDllMemMgr->getOutputPath().size());
+                    if (auto debugCtx = codeGen->m_private->m_Context.m_pDebugContext)
+                    {
+                        name = phantom::Path(debugCtx->m_pDebugDllMemMgr->getDllPath().c_str()).filename();
+                        path = StringView(debugCtx->m_pDebugDllMemMgr->getOutputPath().data(),
+                                          debugCtx->m_pDebugDllMemMgr->getOutputPath().size());
+                    }
+                    else
+                    {
+                        return m_DICompilationUnit; // not found
+                    }
                 }
                 else
                 {
