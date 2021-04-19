@@ -1424,7 +1424,7 @@ Value Subroutine::_createAlloca(Type* type, phantom::Functor<void(Value)> _Inser
         {
             allocaValue =
             Value(TmpB.Insert(new llvm::AllocaInst(toJitType(type->getUnderlyingType()), AddrSpace,
-                                                   createSizeTConstant(type->getSize()).value, llvm::Align(Align)),
+                                                   createSizeTConstant(static_cast<Array*>(type)->getItemCount()).value, llvm::Align(Align)),
                               ""),
                   type->addLValueReference());
         }

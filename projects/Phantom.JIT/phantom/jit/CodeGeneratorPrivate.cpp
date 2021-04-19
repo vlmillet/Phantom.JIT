@@ -1591,7 +1591,7 @@ void CodeGeneratorPrivate::visit(InitializerListExpression* a_pInput, VisitorDat
 
     // zero initialize the list
     in_pSubroutine->memset(begin, in_pSubroutine->createIntConstant(0),
-                           in_pSubroutine->createSizeTConstant(pInitializerListType->getSize())); // zero init first
+                           in_pSubroutine->createSizeTConstant(pRelatedArrayType->getSize())); // zero init first
 
     // construct elements
     auto const& expressions = a_pInput->getExpressions();
