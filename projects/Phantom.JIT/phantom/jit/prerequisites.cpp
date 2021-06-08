@@ -31,6 +31,7 @@
 #include "phantom/lang/Compiler.h"
 #include "phantom/utils/Path.h"
 
+#include <phantom/function>
 #include <phantom/plugin>
 #if PHANTOM_OPERATING_SYSTEM == PHANTOM_OPERATING_SYSTEM_WINDOWS
 #    include <windows.h>
@@ -82,7 +83,7 @@ PHANTOM_EXPORT_PHANTOM_JIT phantom::String sessionFolder()
     return phantom::Path::TempFolder().childPath("Phantom.JIT.Sessions").childPath(g_session_id).genericString();
 }
 
-PHANTOM_EXPORT_PHANTOM_JIT void setSessionId(phantom::String _session_id)
+PHANTOM_EXPORT_PHANTOM_JIT void setSessionId(phantom::StringView _session_id)
 {
     g_session_id = _session_id;
 }
