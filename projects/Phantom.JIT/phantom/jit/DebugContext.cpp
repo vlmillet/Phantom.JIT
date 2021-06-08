@@ -736,6 +736,8 @@ llvm::DIType* DebugContext::_toDIType(Type* a_pType)
     }
     case TypeKind::Pointer:
         return m_DIBuilder.createPointerType(toFwdDIType(a_pType->removePointer()), size, align);
+    case TypeKind::NullPtr:
+        return m_DIBuilder.createNullPtrType();
     }
     if (a_pType->asMemberPointer())
         return m_DIBuilder.createPointerType(toDIType(PHANTOM_TYPEOF(void)), size, align);
