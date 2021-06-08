@@ -127,9 +127,9 @@ void Subroutine::createApplyFunction()
         if (returnType->asReference())
             returnType = returnType->removeReference()->addPointer(); /// transform reference return type into pointer
     }
-    if (getSubroutine()->asMethod())
+    if (auto pMethod = getSubroutine()->asMethod())
     {
-        types.insert(types.begin(), getSubroutine()->getOwner()->asClassType()->addPointer());
+        types.insert(types.begin(), pMethod->getOwnerClassType()->addPointer());
     }
 
     auto arg_it = m_jit_apply_function.function->arg_begin();
@@ -1424,7 +1424,8 @@ Value Subroutine::_createAlloca(Type* type, phantom::Functor<void(Value)> _Inser
         {
             allocaValue =
             Value(TmpB.Insert(new llvm::AllocaInst(toJitType(type->getUnderlyingType()), AddrSpace,
-                                                   createSizeTConstant(static_cast<Array*>(type)->getItemCount()).value, llvm::Align(Align)),
+                                                   createSizeTConstant(static_cast<Array*>(type)->getItemCount()).value,
+                                                   llvm::Align(Align)),
                               ""),
                   type->addLValueReference());
         }
