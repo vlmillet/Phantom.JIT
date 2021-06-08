@@ -47,12 +47,12 @@ PHANTOM_PACKAGE("phantom.jit")
             .method<void(), virtual_|override_>("end", &_::end)
             .method<uint() const>("getPass", &_::getPass)
             .method<::phantom::lang::DebugInformation *(), virtual_|override_>("createDebugInformation", &_::createDebugInformation)
-            .method<void(::phantom::lang::DebugInformation *), virtual_|override_>("destroyDebugInformation", &_::destroyDebugInformation)
+            .method<void(::phantom::lang::DebugInformation *), virtual_|override_>("destroyDebugInformation", &_::destroyDebugInformation)({""})
             .method<::phantom::lang::ExecutionContext *() const, virtual_>("createExecutionContext", &_::createExecutionContext)
-            .method<void(::phantom::lang::ExecutionContext *) const, virtual_>("destroyExecutionContext", &_::destroyExecutionContext)
+            .method<void(::phantom::lang::ExecutionContext *) const, virtual_>("destroyExecutionContext", &_::destroyExecutionContext)({"a_pContext"})
         
         .protected_()
-            .method<Error(uint), virtual_|override_>("compile", &_::compile)
+            .method<Error(uint), virtual_|override_>("compile", &_::compile)({"a_iPass"})
             .method<void(), virtual_|override_>("onOutdated", &_::onOutdated)
             ;
         }

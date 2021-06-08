@@ -207,7 +207,7 @@ CodeGeneratorPrivate::~CodeGeneratorPrivate()
     PHANTOM_ASSERT(!prev_impl);
     while (m_Data.size())
     {
-        auto pData = m_Data.back();
+        auto pData = (m_Data.begin() + (m_Data.size() - 1))->second;
         pData->setCodeGenerator(nullptr);
         phantom::deleteVirtual(pData);
     }

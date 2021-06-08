@@ -84,12 +84,8 @@ struct CodeGeneratorPrivate : public lang::LanguageElementVisitorEx, public llvm
 
     CodeGeneratorData* getData(const lang::LanguageElement* a_pElement) const
     {
-        for (auto pData : m_Data)
-        {
-            if (pData->m_pElement == a_pElement)
-                return pData;
-        }
-        return nullptr;
+        auto found = m_Data.find(a_pElement);
+        return found != m_Data.end() ? found->second : nullptr;
     }
 
     virtual void visit(lang::AllocateExpression* a_pInput, lang::VisitorData a_Data) override;
@@ -178,11 +174,11 @@ struct CodeGeneratorPrivate : public lang::LanguageElementVisitorEx, public llvm
                                  ExpressionFlags a_Flags = ExpressionFlags(e_Expression_RValue | e_Expression_InPlace));
     CaseLabel* caseLabel(lang::Label* a_pLabel);
 
-    void _addData(CodeGeneratorData* a_pCodeGeneratorData) { m_Data.push_back(a_pCodeGeneratorData); }
-    void _removeData(CodeGeneratorData* a_pCodeGeneratorData)
+    void _addData(CodeGeneratorData* a_pCodeGeneratorData)
     {
-        m_Data.erase(std::find(m_Data.begin(), m_Data.end(), a_pCodeGeneratorData));
+        m_Data[a_pCodeGeneratorData->m_pElement] = a_pCodeGeneratorData;
     }
+    void _removeData(CodeGeneratorData* a_pCodeGeneratorData) { m_Data.erase(a_pCodeGeneratorData->m_pElement); }
 
     template<typename t_It>
     Value compileCall(Subroutine* in_pSubroutine, lang::LanguageElement* a_pAllocaOwner,
@@ -213,15 +209,15 @@ struct CodeGeneratorPrivate : public lang::LanguageElementVisitorEx, public llvm
     lang::Method*                       m_pExtractNativeVTableMeth{};
 
     using _BlockData = std::pair<lang::Block*, Subroutine*>;
-    SmallMap<void*, llvm::Function*>           m_GlobalLLVMFunctions;
-    std::vector<CodeGeneratorData*>            m_Data;
-    std::vector<_BlockData>                    m_Blocks;
-    std::vector<void*>                         m_PropertyExpressionPairs;
-    SmallMap<FunctionEntry, Subroutine*>       m_JitSubroutineMap;
-    SmallMap<lang::Subroutine*, FunctionEntry> m_LLVMFunctionMap;
-    SmallVector<llvm::DIScope*, 8>             m_DIScopeStack;
-    ptrdiff_t                                  m_FunctionOffset = 0;
-    int                                        m_lockDebugPos = 0;
+    SmallMap<void*, llvm::Function*>                               m_GlobalLLVMFunctions;
+    SmallMap<const lang::LanguageElement*, CodeGeneratorData*, 32> m_Data;
+    std::vector<_BlockData>                                        m_Blocks;
+    std::vector<void*>                                             m_PropertyExpressionPairs;
+    SmallMap<FunctionEntry, Subroutine*>                           m_JitSubroutineMap;
+    SmallMap<lang::Subroutine*, FunctionEntry>                     m_LLVMFunctionMap;
+    SmallVector<llvm::DIScope*, 8>                                 m_DIScopeStack;
+    ptrdiff_t                                                      m_FunctionOffset = 0;
+    int                                                            m_lockDebugPos = 0;
 };
 
 } // namespace jit
