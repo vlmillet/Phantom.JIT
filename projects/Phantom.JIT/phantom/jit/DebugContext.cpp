@@ -79,7 +79,7 @@ llvm::DIDerivedType* DebugContext::_toDIDerivedType(Field* a_pField)
 
 llvm::DISubprogram* DebugContext::_toDISubprogram(lang::Function* a_pFunction)
 {
-    return m_DIBuilder.createFunction(getOrCreateDIScope(a_pFunction->getNamingScope()->asLanguageElement()),
+    return m_DIBuilder.createFunction(getOrCreateDIScope(a_pFunction->getNamingScope()),
                                       toStringRef(getDebugName(a_pFunction)), toStringRef(getMangledName(a_pFunction)),
                                       getOrCreateDIFile(a_pFunction), a_pFunction->getCodePosition().line,
                                       toDIFunctionType(a_pFunction->getSignature(), a_pFunction->getABI(), nullptr),
@@ -351,6 +351,10 @@ llvm::DIScope* DebugContext::getOrCreateDIScope(phantom::lang::LanguageElement* 
             DIB.finalize();
         }
         return mod;
+    }
+    else if (auto pSpec = a_pScope->asTemplateSpecialization())
+    {
+        return getOrCreateDIScope(pSpec->getTemplate()->getNamingScope());
     }
 
     PHANTOM_ASSERT(false);
