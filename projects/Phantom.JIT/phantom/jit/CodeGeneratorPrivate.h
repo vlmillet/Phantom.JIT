@@ -146,6 +146,8 @@ struct CodeGeneratorPrivate : public lang::LanguageElementVisitorEx, public llvm
     virtual void visit(lang::VariableExpression* a_pInput, lang::VisitorData a_Data) override;
     virtual void visit(lang::VirtualMethodTableSetupStatement* a_pInput, lang::VisitorData a_Data) override;
 
+    virtual void visit(lang::CommaExpression* a_pInput, lang::VisitorData a_Data) override;
+
     Subroutine*     getSubroutine(FunctionEntry func) const;
     llvm::Function* getFunction(lang::Subroutine* a_pSubroutine) const;
 

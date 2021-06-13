@@ -101,6 +101,7 @@
 #    include <psapi.h>
 #endif
 
+#include "phantom/lang/CommaExpression.h"
 #include "session.h"
 
 #include <iostream>
@@ -1353,7 +1354,7 @@ void CodeGeneratorPrivate::visit(ConstructorCallExpression* a_pInput, VisitorDat
     /// temporary
     if (noOut) /// In place or_ temp ?
     {
-        out_value = in_pSubroutine->getOrCreateAlloca(a_pInput, a_pInput->getConstructor()->getOwner()->asType());
+        out_value = in_pSubroutine->getOrCreateAlloca(a_pInput, a_pInput->getConstructor()->getOwnerClassType());
         arguments.insert(arguments.begin(), out_value);
         in_pSubroutine->registerTemporary(a_pInput, out_value);
     }
@@ -1542,6 +1543,16 @@ void CodeGeneratorPrivate::visit(Expression* a_pInput, VisitorData a_Data)
     {
         PHANTOM_ASSERT(false);
     }
+}
+
+void CodeGeneratorPrivate::visit(CommaExpression* a_pInput, VisitorData a_Data)
+{
+    Subroutine* in_pSubroutine = (Subroutine*)a_Data.in[0];
+
+    Value& out_value = *(Value*)a_Data.out[0];
+
+    compileExpression(in_pSubroutine, a_pInput->getLeftExpression());
+    out_value = compileExpression(in_pSubroutine, a_pInput->getRightExpression());
 }
 
 void CodeGeneratorPrivate::visit(ExpressionStatement* a_pInput, VisitorData a_Data)
