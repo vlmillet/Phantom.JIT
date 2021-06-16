@@ -231,7 +231,7 @@ llvm::DIFile* DebugContext::getOrCreateDIFile(phantom::lang::Source* a_pSource)
             SourceFile*   pSrcFile = pSS->asFile();
             phantom::Path p(pSrcFile ? pSrcFile->getPath() : "" /*a_pSource->iliUrl()*/);
 
-            auto                                               FileNameStr = p.absolute().genericString();
+            auto                                               FileNameStr = p.finalPath().absolute().genericString();
             llvm::StringRef                                    FileName = toStringRef(FileNameStr);
             llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> MemBuf = llvm::MemoryBuffer::getFileAsStream(FileName);
             if (MemBuf)

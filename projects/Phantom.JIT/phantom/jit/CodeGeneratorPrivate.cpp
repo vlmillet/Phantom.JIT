@@ -1552,7 +1552,24 @@ void CodeGeneratorPrivate::visit(CommaExpression* a_pInput, VisitorData a_Data)
     Value& out_value = *(Value*)a_Data.out[0];
 
     compileExpression(in_pSubroutine, a_pInput->getLeftExpression());
-    out_value = compileExpression(in_pSubroutine, a_pInput->getRightExpression());
+
+    if (a_Data.flags & e_Expression_RValue)
+    {
+        if (a_pInput->getValueType()->asArray())
+        {
+            out_value = compileExpression(in_pSubroutine, a_pInput->getRightExpression(), e_Expression_LValue);
+        }
+        else
+        {
+            out_value = compileExpression(in_pSubroutine, a_pInput->getRightExpression(), e_Expression_Address);
+            if (out_value.type->asReference())
+                out_value = in_pSubroutine->load(out_value);
+        }
+    }
+    else
+    {
+        out_value = compileExpression(in_pSubroutine, a_pInput->getRightExpression(), (ExpressionFlags)a_Data.flags);
+    }
 }
 
 void CodeGeneratorPrivate::visit(ExpressionStatement* a_pInput, VisitorData a_Data)
@@ -1697,9 +1714,9 @@ void CodeGeneratorPrivate::visit(LoadExpression* a_pInput, VisitorData a_Data)
 void CodeGeneratorPrivate::visit(lang::LocalVariable* a_pInput, VisitorData a_Data)
 {
     Subroutine* in_pSubroutine = (Subroutine*)a_Data.in[0];
-
-    (phantom::new_<LocalVariable>(in_pSubroutine, a_pInput, a_pInput->isThis() ? in_pSubroutine->getThis() : Value()))
-    ->setCodeGenerator(this);
+    if (a_pInput->isThis())
+        return; // 'this' is done in Method visit
+    (phantom::new_<LocalVariable>(in_pSubroutine, a_pInput, Value{}))->setCodeGenerator(this);
 }
 
 void CodeGeneratorPrivate::visit(LocalVariableExpression* a_pInput, VisitorData a_Data)
@@ -1887,6 +1904,10 @@ void CodeGeneratorPrivate::visit(lang::Method* a_pInput, VisitorData a_Data)
         //                 }
         //             }
         queueBlock(a_pInput->getBlock(), pJitMethod);
+
+        // create This local variable
+        auto pThisJitVar = phantom::new_<LocalVariable>(pJitMethod, a_pInput->getThis(), pJitMethod->getThis());
+        pThisJitVar->setCodeGenerator(this);
     }
     else
     {
