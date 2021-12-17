@@ -211,6 +211,7 @@ llvm::Type* Context::_toJitType(Type* a_pType)
     case TypeKind::VectorClass:
     case TypeKind::SetClass:
     case TypeKind::MapClass:
+    case TypeKind::ArrayClass:
     case TypeKind::StringClass:
         return _toJitStruct(a_pType->asClassType());
 

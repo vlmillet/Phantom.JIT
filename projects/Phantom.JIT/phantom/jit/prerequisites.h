@@ -116,8 +116,6 @@ struct PHANTOM_EXPORT_PHANTOM_JIT Value
     lang::Type*  type;
 };
 
-PHANTOM_EXPORT_PHANTOM_JIT phantom::String sessionFolder();
-
 typedef phantom::schar        schar;
 typedef phantom::uchar        uchar;
 typedef phantom::ushort       ushort;

@@ -79,7 +79,7 @@ llvm::DIDerivedType* DebugContext::_toDIDerivedType(Field* a_pField)
 
 llvm::DISubprogram* DebugContext::_toDISubprogram(lang::Function* a_pFunction)
 {
-    return m_DIBuilder.createFunction(getOrCreateDIScope(a_pFunction->getNamingScope()->asLanguageElement()),
+    return m_DIBuilder.createFunction(getOrCreateDIScope(a_pFunction->getNamingScope()),
                                       toStringRef(getDebugName(a_pFunction)), toStringRef(getMangledName(a_pFunction)),
                                       getOrCreateDIFile(a_pFunction), a_pFunction->getCodePosition().line,
                                       toDIFunctionType(a_pFunction->getSignature(), a_pFunction->getABI(), nullptr),
@@ -231,7 +231,7 @@ llvm::DIFile* DebugContext::getOrCreateDIFile(phantom::lang::Source* a_pSource)
             SourceFile*   pSrcFile = pSS->asFile();
             phantom::Path p(pSrcFile ? pSrcFile->getPath() : "" /*a_pSource->iliUrl()*/);
 
-            auto                                               FileNameStr = p.absolute().genericString();
+            auto                                               FileNameStr = p.finalPath().absolute().genericString();
             llvm::StringRef                                    FileName = toStringRef(FileNameStr);
             llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> MemBuf = llvm::MemoryBuffer::getFileAsStream(FileName);
             if (MemBuf)
@@ -323,11 +323,18 @@ llvm::DIScope* DebugContext::getOrCreateDIScope(phantom::lang::LanguageElement* 
             else
             {
                 CodeGenerator* codeGen = phantom::Object::Cast<CodeGenerator>(Compiler::Get()->getCodeGenerator(pMod));
-                if (auto debugCtx = codeGen->m_private->m_Context.m_pDebugContext)
+                if (codeGen)
                 {
-                    name = phantom::Path(debugCtx->m_pDebugDllMemMgr->getDllPath().c_str()).filename();
-                    path = StringView(debugCtx->m_pDebugDllMemMgr->getOutputPath().data(),
-                                      debugCtx->m_pDebugDllMemMgr->getOutputPath().size());
+                    if (auto debugCtx = codeGen->m_private->m_Context.m_pDebugContext)
+                    {
+                        name = phantom::Path(debugCtx->m_pDebugDllMemMgr->getDllPath().c_str()).filename();
+                        path = StringView(debugCtx->m_pDebugDllMemMgr->getOutputPath().data(),
+                                          debugCtx->m_pDebugDllMemMgr->getOutputPath().size());
+                    }
+                    else
+                    {
+                        return m_DICompilationUnit; // not found
+                    }
                 }
                 else
                 {
@@ -344,6 +351,10 @@ llvm::DIScope* DebugContext::getOrCreateDIScope(phantom::lang::LanguageElement* 
             DIB.finalize();
         }
         return mod;
+    }
+    else if (auto pSpec = a_pScope->asTemplateSpecialization())
+    {
+        return getOrCreateDIScope(pSpec->getTemplate()->getNamingScope());
     }
 
     PHANTOM_ASSERT(false);
@@ -688,14 +699,11 @@ llvm::DIType* DebugContext::_toDIType(Type* a_pType)
         return m_DIBuilder.createReferenceType(llvm::dwarf::DW_TAG_rvalue_reference_type,
                                                toFwdDIType(a_pType->removeReference()));
     case TypeKind::Class:
-        return _toDIClass(static_cast<Class*>(a_pType));
     case TypeKind::VectorClass:
-        return _toDIClass(static_cast<Class*>(a_pType));
     case TypeKind::SetClass:
-        return _toDIClass(static_cast<Class*>(a_pType));
     case TypeKind::MapClass:
-        return _toDIClass(static_cast<Class*>(a_pType));
     case TypeKind::StringClass:
+    case TypeKind::ArrayClass:
         return _toDIClass(static_cast<Class*>(a_pType));
     case TypeKind::Structure:
         return _toDIStruct(static_cast<Structure*>(a_pType));
@@ -729,6 +737,8 @@ llvm::DIType* DebugContext::_toDIType(Type* a_pType)
     }
     case TypeKind::Pointer:
         return m_DIBuilder.createPointerType(toFwdDIType(a_pType->removePointer()), size, align);
+    case TypeKind::NullPtr:
+        return m_DIBuilder.createNullPtrType();
     }
     if (a_pType->asMemberPointer())
         return m_DIBuilder.createPointerType(toDIType(PHANTOM_TYPEOF(void)), size, align);

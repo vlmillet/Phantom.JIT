@@ -101,6 +101,9 @@
 #    include <psapi.h>
 #endif
 
+#include "phantom/lang/CommaExpression.h"
+#include "session.h"
+
 #include <iostream>
 #include <phantom/lang/InitializerListExpression.h>
 #include <phantom/lang/TemporaryObjectDestructionExpression.h>
@@ -205,7 +208,7 @@ CodeGeneratorPrivate::~CodeGeneratorPrivate()
     PHANTOM_ASSERT(!prev_impl);
     while (m_Data.size())
     {
-        auto pData = m_Data.back();
+        auto pData = (m_Data.begin() + (m_Data.size() - 1))->second;
         pData->setCodeGenerator(nullptr);
         phantom::deleteVirtual(pData);
     }
@@ -1351,7 +1354,7 @@ void CodeGeneratorPrivate::visit(ConstructorCallExpression* a_pInput, VisitorDat
     /// temporary
     if (noOut) /// In place or_ temp ?
     {
-        out_value = in_pSubroutine->getOrCreateAlloca(a_pInput, a_pInput->getConstructor()->getOwner()->asType());
+        out_value = in_pSubroutine->getOrCreateAlloca(a_pInput, a_pInput->getConstructor()->getOwnerClassType());
         arguments.insert(arguments.begin(), out_value);
         in_pSubroutine->registerTemporary(a_pInput, out_value);
     }
@@ -1542,6 +1545,33 @@ void CodeGeneratorPrivate::visit(Expression* a_pInput, VisitorData a_Data)
     }
 }
 
+void CodeGeneratorPrivate::visit(CommaExpression* a_pInput, VisitorData a_Data)
+{
+    Subroutine* in_pSubroutine = (Subroutine*)a_Data.in[0];
+
+    Value& out_value = *(Value*)a_Data.out[0];
+
+    compileExpression(in_pSubroutine, a_pInput->getLeftExpression());
+
+    if (a_Data.flags & e_Expression_RValue)
+    {
+        if (a_pInput->getValueType()->asArray())
+        {
+            out_value = compileExpression(in_pSubroutine, a_pInput->getRightExpression(), e_Expression_LValue);
+        }
+        else
+        {
+            out_value = compileExpression(in_pSubroutine, a_pInput->getRightExpression(), e_Expression_Address);
+            if (out_value.type->asReference())
+                out_value = in_pSubroutine->load(out_value);
+        }
+    }
+    else
+    {
+        out_value = compileExpression(in_pSubroutine, a_pInput->getRightExpression(), (ExpressionFlags)a_Data.flags);
+    }
+}
+
 void CodeGeneratorPrivate::visit(ExpressionStatement* a_pInput, VisitorData a_Data)
 {
     Subroutine* in_pSubroutine = (Subroutine*)a_Data.in[0];
@@ -1589,7 +1619,7 @@ void CodeGeneratorPrivate::visit(InitializerListExpression* a_pInput, VisitorDat
 
     // zero initialize the list
     in_pSubroutine->memset(begin, in_pSubroutine->createIntConstant(0),
-                           in_pSubroutine->createSizeTConstant(pInitializerListType->getSize())); // zero init first
+                           in_pSubroutine->createSizeTConstant(pRelatedArrayType->getSize())); // zero init first
 
     // construct elements
     auto const& expressions = a_pInput->getExpressions();
@@ -1684,9 +1714,9 @@ void CodeGeneratorPrivate::visit(LoadExpression* a_pInput, VisitorData a_Data)
 void CodeGeneratorPrivate::visit(lang::LocalVariable* a_pInput, VisitorData a_Data)
 {
     Subroutine* in_pSubroutine = (Subroutine*)a_Data.in[0];
-
-    (phantom::new_<LocalVariable>(in_pSubroutine, a_pInput, a_pInput->isThis() ? in_pSubroutine->getThis() : Value()))
-    ->setCodeGenerator(this);
+    if (a_pInput->isThis())
+        return; // 'this' is done in Method visit
+    (phantom::new_<LocalVariable>(in_pSubroutine, a_pInput, Value{}))->setCodeGenerator(this);
 }
 
 void CodeGeneratorPrivate::visit(LocalVariableExpression* a_pInput, VisitorData a_Data)
@@ -1874,6 +1904,10 @@ void CodeGeneratorPrivate::visit(lang::Method* a_pInput, VisitorData a_Data)
         //                 }
         //             }
         queueBlock(a_pInput->getBlock(), pJitMethod);
+
+        // create This local variable
+        auto pThisJitVar = phantom::new_<LocalVariable>(pJitMethod, a_pInput->getThis(), pJitMethod->getThis());
+        pThisJitVar->setCodeGenerator(this);
     }
     else
     {

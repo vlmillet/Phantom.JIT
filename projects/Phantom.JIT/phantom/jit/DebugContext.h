@@ -12,6 +12,7 @@
 #include "llvm/IR/DIBuilder.h"
 
 #include <unordered_map>
+#include <unordered_set>
 #if defined(_MSC_VER)
 #    pragma warning(pop)
 #elif defined(__clang__)
@@ -113,7 +114,7 @@ public:
     Context*                                                    m_pContext;
     llvm::JITPDBMemoryManager*                                  m_pDebugDllMemMgr = nullptr;
     std::unordered_map<lang::Symbol*, String>                   m_SymbolNames;
-    SmallSet<lang::Symbol*>                                     m_NativeSymbols;
+    std::unordered_set<lang::Symbol*>                           m_NativeSymbols;
     void                                                        finalize();
     void                                                        createCompileUnit(StringView _name);
 };
