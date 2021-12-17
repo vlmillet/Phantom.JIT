@@ -699,14 +699,11 @@ llvm::DIType* DebugContext::_toDIType(Type* a_pType)
         return m_DIBuilder.createReferenceType(llvm::dwarf::DW_TAG_rvalue_reference_type,
                                                toFwdDIType(a_pType->removeReference()));
     case TypeKind::Class:
-        return _toDIClass(static_cast<Class*>(a_pType));
     case TypeKind::VectorClass:
-        return _toDIClass(static_cast<Class*>(a_pType));
     case TypeKind::SetClass:
-        return _toDIClass(static_cast<Class*>(a_pType));
     case TypeKind::MapClass:
-        return _toDIClass(static_cast<Class*>(a_pType));
     case TypeKind::StringClass:
+    case TypeKind::ArrayClass:
         return _toDIClass(static_cast<Class*>(a_pType));
     case TypeKind::Structure:
         return _toDIStruct(static_cast<Structure*>(a_pType));

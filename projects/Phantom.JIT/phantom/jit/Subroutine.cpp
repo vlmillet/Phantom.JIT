@@ -1165,7 +1165,12 @@ Value Subroutine::callNativePtr(const char* a_pName, void* a_pNativePtr, ABI abi
 Value Subroutine::returnValue(Value value)
 {
     Value r(o_ir_builder->CreateRet(value.value), PHANTOM_TYPEOF(void));
-    PHANTOM_ASSERT(value.value->getType() == m_jit_call_function.function->getReturnType());
+    PHANTOM_ASSERT((value.value->getType() == m_jit_call_function.function->getReturnType()) ||
+                   (value.value->getType()->isPointerTy() &&
+                    m_jit_call_function.function->getReturnType()->isPointerTy() &&
+                    ((value.value->getType()->getPointerElementType()->isArrayTy() &&
+                      value.value->getType()->getPointerElementType()->getArrayElementType() ==
+                      m_jit_call_function.function->getReturnType()->getPointerElementType()))));
     llvm::BasicBlock* pNewBlock = llvm::BasicBlock::Create(getContext()->m_LLVMContext, "", m_jit_function.function);
     o_ir_builder->SetInsertPoint(pNewBlock);
     return r;
@@ -1704,6 +1709,7 @@ void Subroutine::toGV(void* a_pSrc, Type* a_pType, llvm::GenericValue& gv)
     case TypeKind::VectorClass:
     case TypeKind::MapClass:
     case TypeKind::SetClass:
+    case TypeKind::ArrayClass:
     case TypeKind::StringClass:
     {
         Class* pClass = static_cast<Class*>(a_pType);
@@ -1825,6 +1831,7 @@ void Subroutine::fromGV(void* a_pDest, Type* a_pType, const llvm::GenericValue& 
     case TypeKind::VectorClass:
     case TypeKind::MapClass:
     case TypeKind::SetClass:
+    case TypeKind::ArrayClass:
     case TypeKind::StringClass:
     {
         int    i = 0;
