@@ -132,7 +132,7 @@ void DebugContext::_writeNatvis(std::ostream& _out)
             String       qualName = pSym->getQualifiedName();
             String       nativeModuleName = phantom::Path(pSym->getModule()->getLibraryFullName()).filename();
             StringBuffer runtimeName;
-            StringBuffer nativeName = nativeModuleName + '!' + qualName;
+            StringBuffer nativeName = StringView(nativeModuleName + '!' + qualName);
             if (TemplateSpecialization* pSpec = pSym->getTemplateSpecialization())
             {
                 runtimeName = NativeNamePrefix(pSym) + qualName;
@@ -266,6 +266,18 @@ llvm::DIFile* DebugContext::getOrCreateDIFile(phantom::lang::Source* a_pSource)
 
 llvm::DIFile* DebugContext::getOrCreateDIFile(phantom::lang::LanguageElement* a_pElement)
 {
+    // for template instantiations, we must forward to the template source
+    if (!a_pElement->isNative())
+    {
+        if (auto pSpec = a_pElement->getEnclosingTemplateSpecialization())
+        {
+            if (auto pInstSpec = pSpec->getInstantiationSpecialization())
+                pSpec = pInstSpec;
+            if (pSpec->getOwner() == nullptr) // function template instance inside template class
+                return getOrCreateDIFile(pSpec->getTemplate());
+            return getOrCreateDIFile(pSpec);
+        }
+    }
     return getOrCreateDIFile(a_pElement->getCodeLocationSource());
 }
 
@@ -505,7 +517,7 @@ llvm::DIType* DebugContext::_toDIClass(Class* a_pClass)
                 pConst->getValue(&val);
                 params.push_back(m_DIBuilder.createTemplateValueParameter(
                 m_DICompilationUnit, toStringRef(pArg->getName()), toFwdDIType(pType),
-                llvm::Constant::getIntegerValue(m_pContext->toJitType(pType), llvm::APInt(32, val)), false));
+                llvm::Constant::getIntegerValue(m_pContext->toJitType(pType), llvm::APInt(32, val)), nullptr));
             }
         }
     }

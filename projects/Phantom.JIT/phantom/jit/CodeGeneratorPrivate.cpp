@@ -108,6 +108,8 @@
 #include <phantom/lang/InitializerListExpression.h>
 #include <phantom/lang/TemporaryObjectDestructionExpression.h>
 
+#define CODEGENPRIV_ASSERT PHANTOM_ASSERT_DEBUG
+
 namespace phantom
 {
 PHANTOM_EXPORT_PHANTOM void dynamicDelete(void* in);
@@ -205,7 +207,7 @@ CodeGeneratorPrivate::CodeGeneratorPrivate(CodeGenerator* a_pCodeGenerator)
 
 CodeGeneratorPrivate::~CodeGeneratorPrivate()
 {
-    PHANTOM_ASSERT(!prev_impl);
+    CODEGENPRIV_ASSERT(!prev_impl);
     while (m_Data.size())
     {
         auto pData = (m_Data.begin() + (m_Data.size() - 1))->second;
@@ -373,10 +375,10 @@ void CodeGeneratorPrivate::visit(ArrayExpression* a_pInput, VisitorData a_Data)
         {
             size_t offset = i * stride;
             auto   pType = pArrayItemType->addPointer();
-            Value  adjust = (offset == 0)
+            Value  adjust = /*(offset == 0)
             ? Value(o_ir_builder->CreatePointerCast(out_value.value, in_pSubroutine->toJitType(pType)), pType)
-            : in_pSubroutine->loadElemAddress(out_value, i, pType);
-            if (pArrayItemType->asClassType())
+            : */ in_pSubroutine->loadElemAddress(out_value, i, pType);
+            if (pArrayItemType->asClassType() || pArrayItemType->asArray())
             {
                 compileExpression(in_pSubroutine, pExp, adjust);
             }
@@ -418,8 +420,8 @@ void CodeGeneratorPrivate::visit(ClassListInitializationExpression* a_pInput, Vi
 
     if (out_value.isNull())
     {
-        PHANTOM_ASSERT(((a_Data.flags & e_Expression_Address) != 0),
-                       "any class value cannot be requested as an RValue");
+        CODEGENPRIV_ASSERT(((a_Data.flags & e_Expression_Address) != 0),
+                           "any class value cannot be requested as an RValue");
         out_value = in_pSubroutine->getOrCreateAlloca(a_pInput, pClass);
         in_pSubroutine->registerTemporary(a_pInput, out_value);
     }
@@ -449,7 +451,7 @@ void CodeGeneratorPrivate::visit(ClassListInitializationExpression* a_pInput, Vi
             Value  adjust = (offset == 0)
             ? Value(o_ir_builder->CreatePointerCast(out_value.value, in_pSubroutine->toJitType(pType)), pType)
             : in_pSubroutine->adjustPointer(out_value, offset, pType);
-            if (pField->getValueType()->asClassType())
+            if (pField->getValueType()->asClassType() || pField->getValueType()->asArray())
             {
                 compileExpression(in_pSubroutine, pExp, adjust);
             }
@@ -474,8 +476,8 @@ void CodeGeneratorPrivate::visit(ClassTypeListInitializationExpression* a_pInput
 
     if (out_value.isNull())
     {
-        PHANTOM_ASSERT(((a_Data.flags & e_Expression_Address) != 0),
-                       "any class value cannot be requested as an RValue");
+        CODEGENPRIV_ASSERT(((a_Data.flags & e_Expression_Address) != 0),
+                           "any class value cannot be requested as an RValue");
         out_value = in_pSubroutine->getOrCreateAlloca(a_pInput, pClassType);
     }
     in_pSubroutine->memset(out_value, in_pSubroutine->createIntConstant(0),
@@ -492,7 +494,7 @@ void CodeGeneratorPrivate::visit(ClassTypeListInitializationExpression* a_pInput
             Value  adjust = (offset == 0)
             ? Value(o_ir_builder->CreatePointerCast(out_value.value, in_pSubroutine->toJitType(pType)), pType)
             : in_pSubroutine->adjustPointer(out_value, offset, pType);
-            if (pField->getValueType()->asClassType())
+            if (pField->getValueType()->asClassType() || pField->getValueType()->asArray())
             {
                 compileExpression(in_pSubroutine, pExp, adjust);
             }
@@ -606,11 +608,11 @@ void CodeGeneratorPrivate::visit(BuiltInConversionExpression* a_pInput, VisitorD
 {
     Subroutine* in_pSubroutine = (Subroutine*)a_Data.in[0];
     Value&      out_value = *(Value*)a_Data.out[0];
-    PHANTOM_ASSERT(out_value.isNull());
+    CODEGENPRIV_ASSERT(out_value.isNull());
 
     Value in_value = compileExpression(in_pSubroutine, a_pInput->getInputExpression());
 
-    if (a_pInput->getValueType() == PHANTOM_TYPEOF(bool))
+    if (a_pInput->getValueType() == BuiltInTypes::TYPE_BOOL)
     {
         out_value = in_pSubroutine->toBool(in_value);
     }
@@ -672,7 +674,7 @@ void CodeGeneratorPrivate::visit(BuiltInConversionExpression* a_pInput, VisitorD
         pushPropertyStack();                                                                                           \
         result = compileExpression(in_pSubroutine, a_pInput->getEvalArgument(0), e_Expression_LValue);                 \
         Value v1 = compileExpression(in_pSubroutine, a_pInput->getEvalArgument(1));                                    \
-        PHANTOM_ASSERT(result.type->asReference());                                                                    \
+        CODEGENPRIV_ASSERT(result.type->asReference());                                                                \
         if (Enum* pEnum = v1.type->asEnum())                                                                           \
             v1.type = pEnum->getUnderlyingIntType();                                                                   \
         Value opResult = in_pSubroutine->n(in_pSubroutine->load(result), v1);                                          \
@@ -720,7 +722,7 @@ void CodeGeneratorPrivate::visit(BuiltInOperatorExpression* a_pInput, VisitorDat
                                    ExpressionFlags((a_Data.flags & e_Expression_Address)
                                                    ? (e_Expression_Address | e_Expression_KeepRefAddress)
                                                    : e_Expression_Address));
-        PHANTOM_ASSERT(result.type->asAddressType());
+        CODEGENPRIV_ASSERT(result.type->asAddressType());
         break;
     case Operator::Dereference:
         result = compileExpression(in_pSubroutine, a_pInput->getEvalArgument(0), e_Expression_RValue);
@@ -728,7 +730,7 @@ void CodeGeneratorPrivate::visit(BuiltInOperatorExpression* a_pInput, VisitorDat
         {
             result = in_pSubroutine->load(result);
         }
-        PHANTOM_ASSERT(result.type->asPointer() || result.type->asArray());
+        CODEGENPRIV_ASSERT(result.type->asPointer() || result.type->asArray());
 
         // at this point the dereferencement is silent => we haven't done any change to the JIT
         // value returned by the deferenced expression (indeed in C++ '*ptr-to-class' has type
@@ -736,10 +738,10 @@ void CodeGeneratorPrivate::visit(BuiltInOperatorExpression* a_pInput, VisitorDat
 
         break;
     case Operator::Arrow:
-        PHANTOM_ASSERT(false, "built in '->' operator should have been resolved at precompilation level");
+        CODEGENPRIV_ASSERT(false, "built in '->' operator should have been resolved at precompilation level");
         break;
     case Operator::ArrowStar:
-        PHANTOM_ASSERT(false);
+        CODEGENPRIV_ASSERT(false);
         break;
     case Operator::PreDecrement:
         result = compileExpression(in_pSubroutine, a_pInput->getEvalArgument(0), e_Expression_LValue);
@@ -808,7 +810,7 @@ void CodeGeneratorPrivate::visit(BuiltInOperatorExpression* a_pInput, VisitorDat
 
             //                         static lang::Function* pPrintFunc =
             //                         phantom::cplusplus()->findFunction("phantom::print(const
-            //                         char*,int,int)"); PHANTOM_ASSERT(pPrintFunc);
+            //                         char*,int,int)"); CODEGENPRIV_ASSERT(pPrintFunc);
             //
             //                         Expressions args;
             //                         args.push_back(New<StringLiteralExpression>("\"" +
@@ -931,7 +933,7 @@ void CodeGeneratorPrivate::visit(BuiltInOperatorExpression* a_pInput, VisitorDat
         {
             v1 = in_pSubroutine->load(v1);
         }
-        PHANTOM_ASSERT(result.type->asReference()); // we can only assign to l-values
+        CODEGENPRIV_ASSERT(result.type->asReference()); // we can only assign to l-values
         v1 = in_pSubroutine->convert(v1, result.type->removeReference());
         in_pSubroutine->store(result, v1);
         flushProperties(in_pSubroutine);
@@ -969,8 +971,8 @@ void CodeGeneratorPrivate::visit(BuiltInOperatorExpression* a_pInput, VisitorDat
         BINARY_ASSIGN(xor_);
         break;
     case Operator::Bracket:
-        PHANTOM_ASSERT(a_pInput->getEvalArgument(0)->getValueType()->removeConstReference()->asArray() ||
-                       a_pInput->getEvalArgument(0)->getValueType()->removeConstReference()->asPointer());
+        CODEGENPRIV_ASSERT(a_pInput->getEvalArgument(0)->getValueType()->removeConstReference()->asArray() ||
+                           a_pInput->getEvalArgument(0)->getValueType()->removeConstReference()->asPointer());
         result = in_pSubroutine->loadElemAddress(
         compileExpression(in_pSubroutine, a_pInput->getEvalArgument(0)),
         /*in_pSubroutine->mul(
@@ -1051,7 +1053,7 @@ Value CodeGeneratorPrivate::compileCall(Subroutine* in_pSubroutine, LanguageElem
                     argumentValue = compileExpression(in_pSubroutine, *it);
                     argumentValue = in_pSubroutine->convert(
                     argumentValue, static_cast<lang::Method*>(a_pSubroutine)->getOwnerClassType()->makePointer());
-                    PHANTOM_ASSERT(!argumentValue.isNull());
+                    CODEGENPRIV_ASSERT(!argumentValue.isNull());
                     --argCount;                            // rvo
                     arguments[--argCount] = argumentValue; /// 'this' must stay the first argument in case of RVO
                     continue;
@@ -1062,14 +1064,14 @@ Value CodeGeneratorPrivate::compileCall(Subroutine* in_pSubroutine, LanguageElem
                     argumentValue = compileExpression(in_pSubroutine, *it);
                     argumentValue = in_pSubroutine->convert(
                     argumentValue, static_cast<lang::Method*>(a_pSubroutine)->getOwnerClassType()->makePointer());
-                    PHANTOM_ASSERT(!argumentValue.isNull());
+                    CODEGENPRIV_ASSERT(!argumentValue.isNull());
                     arguments[--argCount] = argumentValue;
                     continue;
                 }
             }
             Type* pParamType = a_pSubroutine->getParameterType(argCount - 1 - bThisCall - bRVO);
             argumentValue = compileArgument(in_pSubroutine, pParamType, *it);
-            PHANTOM_ASSERT(!argumentValue.isNull());
+            CODEGENPRIV_ASSERT(!argumentValue.isNull());
             arguments[--argCount] = argumentValue;
         }
     }
@@ -1100,7 +1102,7 @@ Value CodeGeneratorPrivate::compileCall(Subroutine* in_pSubroutine, LanguageElem
     //             if(bThisCall && argCount == 1)
     //             {
     //                 Value argumentValue = compileExpression(in_pSubroutine, *it);
-    //                 PHANTOM_ASSERT(!argumentValue.isNull());
+    //                 CODEGENPRIV_ASSERT(!argumentValue.isNull());
     //                 arguments[--argCount] = argumentValue;
     //             }
     //             else
@@ -1108,22 +1110,22 @@ Value CodeGeneratorPrivate::compileCall(Subroutine* in_pSubroutine, LanguageElem
     //                 Type* pParamType = a_pSubroutine->getParameterType(argCount-1-bThisCall);
     //                 Value argumentValue = compileExpression(in_pSubroutine, *it,
     //                 pParamType->asReference() ? e_Expression_Address : e_Expression_RValue);
-    //                 PHANTOM_ASSERT(!argumentValue.isNull());
+    //                 CODEGENPRIV_ASSERT(!argumentValue.isNull());
     //                 arguments[--argCount] = argumentValue;
     //             }
     //         }
     //     }
 
-    PHANTOM_ASSERT(argCount == 0);
+    CODEGENPRIV_ASSERT(argCount == 0);
 
     Value returnValue =
     in_pSubroutine->callSubroutine(a_pSubroutine, arguments.data(), arguments.size(), 0, a_bForceNonVirtualCall);
-    PHANTOM_ASSERT(!bRVO || returnValue.type == a_pSubroutine->getReturnType()->removeQualifiers()->addPointer());
+    CODEGENPRIV_ASSERT(!bRVO || returnValue.type == a_pSubroutine->getReturnType()->removeQualifiers()->addPointer());
     if (flags & e_Expression_Address)
     {
         if (a_pSubroutine->getReturnType()->asReference())
         {
-            PHANTOM_ASSERT(!bRVO);
+            CODEGENPRIV_ASSERT(!bRVO);
             out_value = returnValue;
         }
         else
@@ -1144,7 +1146,7 @@ Value CodeGeneratorPrivate::compileCall(Subroutine* in_pSubroutine, LanguageElem
     }
     else if (flags & e_Expression_LValue)
     {
-        PHANTOM_ASSERT(a_pSubroutine->getReturnType()->asLValueReference());
+        CODEGENPRIV_ASSERT(a_pSubroutine->getReturnType()->asLValueReference());
         if (!bRVO)
         {
             out_value = returnValue;
@@ -1178,14 +1180,14 @@ void CodeGeneratorPrivate::visit(CallExpression* a_pInput, VisitorData a_Data)
         /// request call solving with temporary address return
         out_value = compileCall(in_pSubroutine, a_pInput, pSubroutine, args.rbegin(), args.rend(), Value(),
                                 a_Data.flags | e_Expression_Address, forceNonVirtualCall);
-        PHANTOM_ASSERT(!(pSubroutine->isRVOCandidate()) || out_value.type->asAddressType(),
-                       "RVO call must return a pointer type");
+        CODEGENPRIV_ASSERT(!(pSubroutine->isRVOCandidate()) || out_value.type->asAddressType(),
+                           "RVO call must return a pointer type");
         temp = true;
     }
     else
     {
-        PHANTOM_ASSERT(out_value.type->asAddressType());
-        PHANTOM_ASSERT(a_pInput->getValueType()->removeRValueReference()->removeQualifiers()->asClass());
+        CODEGENPRIV_ASSERT(out_value.type->asAddressType());
+        CODEGENPRIV_ASSERT(a_pInput->getValueType()->removeRValueReference()->removeQualifiers()->asClass());
         PHANTOM_VERIFY(out_value ==
                        compileCall(in_pSubroutine, a_pInput, pSubroutine, args.rbegin(), args.rend(), out_value,
                                    a_Data.flags, forceNonVirtualCall));
@@ -1318,7 +1320,7 @@ void CodeGeneratorPrivate::visit(ConstantExpression* a_pInput, VisitorData a_Dat
             }
             break;
             default:
-                PHANTOM_ASSERT(false);
+                CODEGENPRIV_ASSERT(false);
             }
         }
     }
@@ -1333,7 +1335,8 @@ void CodeGeneratorPrivate::visit(ConstantExpression* a_pInput, VisitorData a_Dat
 void CodeGeneratorPrivate::visit(ConstructorCallExpression* a_pInput, VisitorData a_Data)
 {
     Subroutine* in_pSubroutine = (Subroutine*)a_Data.in[0];
-    Value&      out_value = *(Value*)a_Data.out[0];
+
+    Value& out_value = *(Value*)a_Data.out[0];
 
     phantom::SmallVector<Value> arguments;
     size_t                      argCount = a_pInput->getConstructor()->getParameters().size();
@@ -1344,7 +1347,7 @@ void CodeGeneratorPrivate::visit(ConstructorCallExpression* a_pInput, VisitorDat
     {
         Type* pParamType = a_pInput->getConstructor()->getParameterType(--argCount);
         Value argumentValue = compileArgument(in_pSubroutine, pParamType, *it);
-        PHANTOM_ASSERT(!argumentValue.isNull());
+        CODEGENPRIV_ASSERT(!argumentValue.isNull());
         arguments.insert(arguments.begin(),
                          argumentValue); /// insert at beginning to keep left-to-right order
     }
@@ -1402,13 +1405,13 @@ void CodeGeneratorPrivate::visit(FieldExpression* a_pInput, VisitorData a_Data)
     Subroutine* in_pSubroutine = (Subroutine*)a_Data.in[0];
     Value&      out_value = *(Value*)a_Data.out[0];
     Value       left = compileExpression(in_pSubroutine, a_pInput->getObjectExpression(), e_Expression_Address);
-    PHANTOM_ASSERT(left.type->asReference() != nullptr);
+    CODEGENPRIV_ASSERT(left.type->asReference() != nullptr);
     Type* pFieldType = a_pInput->getField()->getValueType();
     if (a_Data.flags & e_Expression_RValue)
     {
         if (Array* pArr = pFieldType->asArray())
         {
-            PHANTOM_ASSERT(false);
+            CODEGENPRIV_ASSERT(false);
             //             out_value =
             //             in_pSubroutine->adjustPointer(left, a_pInput->getField()->getOffset(),
             //             pArr->getUnderlyingType()->removeAllExtents()->makePointer());
@@ -1455,7 +1458,7 @@ void CodeGeneratorPrivate::visit(FieldExpression* a_pInput, VisitorData a_Data)
         {
             out_value = in_pSubroutine->adjustPointer(left, a_pInput->getField()->getOffset(), pAdjutAddrType);
         }
-        PHANTOM_ASSERT(out_value.type->asPointer() || out_value.type->asLValueReference());
+        CODEGENPRIV_ASSERT(out_value.type->asPointer() || out_value.type->asLValueReference());
         out_value.type = out_value.type->getUnderlyingType()->addLValueReference();
     }
 }
@@ -1469,7 +1472,6 @@ void CodeGeneratorPrivate::visit(FieldInitializationStatement* a_pInput, Visitor
     Expression* pInitExp = a_pInput->getInitializationExpression();
     Value       adjust =
     in_pSubroutine->adjustPointer(this_, ptrdiff_t(a_pInput->getField()->getOffset()), pFieldType->addPointer());
-
     if (pFieldType->asReference())
     {
         adjust = in_pSubroutine->adjustPointer(this_, ptrdiff_t(a_pInput->getField()->getOffset()),
@@ -1497,7 +1499,7 @@ void CodeGeneratorPrivate::visit(FieldPointerExpression* a_pInput, VisitorData a
 {
     Subroutine* in_pSubroutine = (Subroutine*)a_Data.in[0];
     Value&      out_value = *(Value*)a_Data.out[0];
-    PHANTOM_ASSERT(false);
+    CODEGENPRIV_ASSERT(false);
 }
 
 void CodeGeneratorPrivate::visit(DeallocateExpression* a_pInput, VisitorData a_Data)
@@ -1541,7 +1543,7 @@ void CodeGeneratorPrivate::visit(Expression* a_pInput, VisitorData a_Data)
     Subroutine* in_pSubroutine = (Subroutine*)a_Data.in[0];
     Value&      out_value = *(Value*)a_Data.out[0];
     {
-        PHANTOM_ASSERT(false);
+        CODEGENPRIV_ASSERT(false);
     }
 }
 
@@ -1592,13 +1594,16 @@ void CodeGeneratorPrivate::visit(IdentityExpression* a_pInput, VisitorData a_Dat
     Subroutine* in_pSubroutine = (Subroutine*)a_Data.in[0];
     Value&      out_value = *(Value*)a_Data.out[0];
     a_pInput->getExpression()->visit(this, a_Data);
-    if (a_pInput->getValueType()->removeQualifiers() != a_pInput->getExpression()->getValueType()->removeQualifiers())
-        if (out_value.type != a_pInput->getValueType())
+    auto pValType = a_pInput->getValueType();
+    if (pValType->removeQualifiers() != a_pInput->getExpression()->getValueType()->removeQualifiers())
+        if (out_value.type != pValType)
         {
-            out_value = in_pSubroutine->convert(out_value, a_pInput->getValueType());
+            out_value = in_pSubroutine->convert(out_value, pValType);
+#if PHANTOM_DEBUG_LEVEL == PHANTOM_DEBUG_LEVEL_FULL
             uint8_t l0 = out_value.type->getAddressLevel();
-            uint8_t l1 = a_pInput->getValueType()->getAddressLevel();
-            PHANTOM_ASSERT((l0 == l1) || (l0 && (l1 == 0xff)) || (l1 && (l0 == 0xff)));
+            uint8_t l1 = pValType->getAddressLevel();
+            CODEGENPRIV_ASSERT((l0 == l1) || (l0 && (l1 == 0xff)) || (l1 && (l0 == 0xff)));
+#endif
         }
 }
 
@@ -1633,7 +1638,8 @@ void CodeGeneratorPrivate::visit(InitializerListExpression* a_pInput, VisitorDat
             Value  adjust = (offset == 0)
             ? Value(o_ir_builder->CreatePointerCast(begin.value, in_pSubroutine->toJitType(pType)), pType)
             : in_pSubroutine->loadElemAddress(begin, i, pType);
-            if (pContentType->removeQualifiers()->asClassType())
+            auto typeNoQual = pContentType->removeQualifiers();
+            if (typeNoQual->asClassType() || typeNoQual->asArray())
             {
                 compileExpression(in_pSubroutine, pExp, adjust);
             }
@@ -1694,7 +1700,7 @@ void CodeGeneratorPrivate::visit(LoadExpression* a_pInput, VisitorData a_Data)
             else
             {
                 out_value = compileExpression(in_pSubroutine, a_pInput->getLoadedExpression(), e_Expression_Address);
-                PHANTOM_ASSERT(out_value.type->asReference());
+                CODEGENPRIV_ASSERT(out_value.type->asReference());
                 out_value = in_pSubroutine->load(out_value);
             }
         }
@@ -1725,12 +1731,12 @@ void CodeGeneratorPrivate::visit(LocalVariableExpression* a_pInput, VisitorData 
     lang::LocalVariable* pLocalVar = a_pInput->getLocalVariable();
     if (!pLocalVar)
         pLocalVar = static_cast<lang::Method*>(in_pSubroutine->getSubroutine())->getThis();
-    PHANTOM_ASSERT(pLocalVar);
+    CODEGENPRIV_ASSERT(pLocalVar);
 
     Value& out_value = *(Value*)a_Data.out[0];
     Value  localValue;
     auto   pJitLocalVar = static_cast<LocalVariable*>(getData(pLocalVar));
-    PHANTOM_ASSERT(pJitLocalVar);
+    CODEGENPRIV_ASSERT(pJitLocalVar);
     localValue = pJitLocalVar->getValue();
     bool isLocalReference = pLocalVar && (pLocalVar->getValueType()->asReference() != nullptr);
     bool isStructParameterByPtr = pLocalVar && pLocalVar->asParameter() &&
@@ -1739,7 +1745,7 @@ void CodeGeneratorPrivate::visit(LocalVariableExpression* a_pInput, VisitorData 
     {
         if (pLocalVar->asParameter() && pLocalVar->getValueType()->asArray())
         {
-            PHANTOM_ASSERT((a_Data.flags & (e_Expression_Address | e_Expression_LValue)));
+            CODEGENPRIV_ASSERT((a_Data.flags & (e_Expression_Address | e_Expression_LValue)));
             out_value = in_pSubroutine->load(localValue);
         }
         else if (a_Data.flags & e_Expression_Address)
@@ -1748,7 +1754,7 @@ void CodeGeneratorPrivate::visit(LocalVariableExpression* a_pInput, VisitorData 
             // structs are passed by pointer if size > pointer size
             {
                 out_value = localValue;
-                PHANTOM_ASSERT(out_value.type->asAddressType());
+                CODEGENPRIV_ASSERT(out_value.type->asAddressType());
                 out_value.setType(a_pInput->getValueType());
             }
             else if (isLocalReference)
@@ -1756,13 +1762,13 @@ void CodeGeneratorPrivate::visit(LocalVariableExpression* a_pInput, VisitorData 
                 if ((a_Data.flags & e_Expression_KeepRefAddress))
                 {
                     out_value = localValue;
-                    PHANTOM_ASSERT(out_value.type->asAddressType());
+                    CODEGENPRIV_ASSERT(out_value.type->asAddressType());
                     out_value.setType(a_pInput->getValueType()->addLValueReference());
                 }
                 else
                 {
                     out_value = in_pSubroutine->load(localValue);
-                    PHANTOM_ASSERT(out_value.type->asAddressType());
+                    CODEGENPRIV_ASSERT(out_value.type->asAddressType());
                     out_value.setType(a_pInput->getValueType());
                 }
             }
@@ -1777,13 +1783,13 @@ void CodeGeneratorPrivate::visit(LocalVariableExpression* a_pInput, VisitorData 
             // structs are passed by pointer if size > pointer size
             {
                 out_value = localValue;
-                PHANTOM_ASSERT(out_value.type->asPointer());
+                CODEGENPRIV_ASSERT(out_value.type->asPointer());
                 out_value.setType(a_pInput->getValueType());
             }
             else if (isLocalReference)
             {
                 out_value = in_pSubroutine->load(localValue);
-                PHANTOM_ASSERT(out_value.type->asPointer());
+                CODEGENPRIV_ASSERT(out_value.type->asPointer());
                 out_value.setType(a_pInput->getValueType());
             }
             else
@@ -1793,7 +1799,7 @@ void CodeGeneratorPrivate::visit(LocalVariableExpression* a_pInput, VisitorData 
         }
         else
         {
-            PHANTOM_ASSERT(!isStructParameterByPtr, "we should never ask a struct as r-value");
+            CODEGENPRIV_ASSERT(!isStructParameterByPtr, "we should never ask a struct as r-value");
             out_value = localValue;
             if (isLocalReference)
             {
@@ -1806,9 +1812,9 @@ void CodeGeneratorPrivate::visit(LocalVariableExpression* a_pInput, VisitorData 
     }
     else
     {
-        PHANTOM_ASSERT(!isStructParameterByPtr, "we should never ask a struct as r-value");
-        PHANTOM_ASSERT(localValue.type->removeReference()->removeQualifiers()->asClass() == nullptr,
-                       "E.S.T build has a missing user defined conversion (constructor/conversion function)");
+        CODEGENPRIV_ASSERT(!isStructParameterByPtr, "we should never ask a struct as r-value");
+        CODEGENPRIV_ASSERT(localValue.type->removeReference()->removeQualifiers()->asClass() == nullptr,
+                           "E.S.T build has a missing user defined conversion (constructor/conversion function)");
         Value in_value =
         isLocalReference ? in_pSubroutine->load(in_pSubroutine->load(localValue)) : in_pSubroutine->load(localValue);
         in_value = in_pSubroutine->convert(in_value, out_value.type->removePointer());
@@ -1833,7 +1839,7 @@ void CodeGeneratorPrivate::visit(LocalVariableInitializationStatement* a_pInput,
         PHANTOM_VERIFY(in_pSubroutine->store(pJitLocalVariable->getValue(), v).value, "");
         if (a_pInput->isTemporaryContainer())
         {
-            in_pSubroutine->registerTemporary(a_pInput->getInitializationExpression()->removeRValueToLValueExpression(),
+            in_pSubroutine->registerTemporary(a_pInput->getInitializationExpression()->removeRValueStorageExpression(),
                                               v);
         }
     }
@@ -1868,7 +1874,7 @@ void CodeGeneratorPrivate::visit(lang::Method* a_pInput, VisitorData a_Data)
     pJitMethod->setCodeGenerator(this);
     if (a_pInput->getBlock())
     {
-        PHANTOM_ASSERT(a_pInput->getOwnerClassType());
+        CODEGENPRIV_ASSERT(a_pInput->getOwnerClassType());
         Methods originalOverriddenMethods;
         a_pInput->getOriginalOverriddenMethods(originalOverriddenMethods);
         // if(originalOverriddenMethods.size() > 1) // more than one root overridden method => thunk
@@ -1911,7 +1917,7 @@ void CodeGeneratorPrivate::visit(lang::Method* a_pInput, VisitorData a_Data)
     }
     else
     {
-        PHANTOM_ASSERT(a_pInput->isPureVirtual() || a_pInput->testModifiers(Modifier::Deleted));
+        CODEGENPRIV_ASSERT(a_pInput->isPureVirtual() || a_pInput->testModifiers(Modifier::Deleted));
     }
 }
 
@@ -2012,8 +2018,8 @@ void CodeGeneratorPrivate::visit(PropertyExpression* a_pInput, VisitorData a_Dat
 
     Value get_caller = in_pSubroutine->load(leftTemp);
 
-    PHANTOM_ASSERT(!left.isNull());
-    PHANTOM_ASSERT(a_pInput->getProperty()->getGet());
+    CODEGENPRIV_ASSERT(!left.isNull());
+    CODEGENPRIV_ASSERT(a_pInput->getProperty()->getGet());
     bool   bRVO = a_pInput->getProperty()->getGet()->isRVOCandidate();
     Value& out_value = *(Value*)a_Data.out[0];
     Class* pPropertyRawClass = a_pInput->getValueType()->asClass();
@@ -2031,7 +2037,7 @@ void CodeGeneratorPrivate::visit(PropertyExpression* a_pInput, VisitorData a_Dat
         if (pPropertyClass)                                   // if a class, call copy constructor (must be provided)
         {
             lang::Constructor* pCtor = pPropertyClass->getCopyConstructor();
-            PHANTOM_ASSERT(pCtor);
+            CODEGENPRIV_ASSERT(pCtor);
             Value args[2] = {out_value, callResult};
             in_pSubroutine->callSubroutine(pCtor, args, 2, 0);
             if (pPropertyRawClass)
@@ -2089,9 +2095,9 @@ void CodeGeneratorPrivate::visit(ReturnStatement* a_pInput, VisitorData a_Data)
                                 retRef ? e_Expression_LValue : e_Expression_RValue);
     }
 
-    PHANTOM_ASSERT(ret.type == nullptr ||
-                   ((ret.type->asReference() != nullptr) ==
-                    (in_pSubroutine->getSubroutine()->getReturnType()->asReference() != nullptr)));
+    CODEGENPRIV_ASSERT(ret.type == nullptr ||
+                       ((ret.type->asReference() != nullptr) ==
+                        (in_pSubroutine->getSubroutine()->getReturnType()->asReference() != nullptr)));
     visit(static_cast<ControlStatement*>(a_pInput), a_Data);
     setCurrentDebugPos(in_pSubroutine, a_pInput->getSubroutine()->getCodeRange().end);
     if (ret.value && !ret.type->isVoid())
@@ -2154,7 +2160,7 @@ void CodeGeneratorPrivate::visit(NewExpression* a_pInput, VisitorData a_Data)
     Subroutine* in_pSubroutine = (Subroutine*)a_Data.in[0];
     Value&      out_value = *(Value*)a_Data.out[0];
     Class*      pClass = a_pInput->getValueType()->removePointer()->asClass();
-    PHANTOM_ASSERT(pClass);
+    CODEGENPRIV_ASSERT(pClass);
     Value         void_ptr = in_pSubroutine->createVoidPtrConstant(pClass);
     Value         class_ptr = in_pSubroutine->convert(void_ptr, PHANTOM_TYPEOF(Class)->addPointer());
     FunctionType* pFuncType = a_pInput->getSource()->functionType(PHANTOM_TYPEOF(void*), TypesView{});
@@ -2205,7 +2211,7 @@ void CodeGeneratorPrivate::visit(SubroutinePointerExpression* a_pInput, VisitorD
     }
     else
     {
-        PHANTOM_ASSERT(a_pInput->getSubroutine()->getClosure().address);
+        CODEGENPRIV_ASSERT(a_pInput->getSubroutine()->getClosure().address);
         out_value =
         in_pSubroutine->convert(in_pSubroutine->createVoidPtrConstant(a_pInput->getSubroutine()->getClosure().address),
                                 a_pInput->getValueType());
@@ -2252,7 +2258,7 @@ void CodeGeneratorPrivate::visit(VariableExpression* a_pInput, VisitorData a_Dat
 void CodeGeneratorPrivate::visit(VirtualMethodTableSetupStatement* a_pInput, VisitorData a_Data)
 {
     Subroutine* in_pSubroutine = (Subroutine*)a_Data.in[0];
-    PHANTOM_ASSERT(a_pInput->getTable());
+    CODEGENPRIV_ASSERT(a_pInput->getTable());
     Value         table_ptr = in_pSubroutine->createPtrConstant(a_pInput->getTable());
     Value         this_ = in_pSubroutine->getThis();
     FunctionType* pFuncType = a_pInput->getSource()->functionType(PHANTOM_TYPEOF(void), PHANTOM_TYPEOF(void*));
@@ -2281,7 +2287,7 @@ void CodeGeneratorPrivate::flushProperties(Subroutine* in_pSubroutine)
     while (i--)
     {
         PropertyAccessPair& pair = pap[i];
-        PHANTOM_ASSERT(!pair.lhsAddress.isNull());
+        CODEGENPRIV_ASSERT(!pair.lhsAddress.isNull());
         PropertyExpression* propertyExpression = pair.propertyExpression;
         Type*               pPropertyType = propertyExpression->getValueType()->removeReference()->removeQualifiers();
         Value               valueAddress = pair.valueAddress;
@@ -2301,7 +2307,7 @@ void CodeGeneratorPrivate::flushProperties(Subroutine* in_pSubroutine)
         propertyExpression->getProperty()->getValueType()->removeReference()->removeQualifiers()->asClass();
         if (pPropertyClass)
         {
-            PHANTOM_ASSERT(pair.valueAddress.type->asAddressType());
+            CODEGENPRIV_ASSERT(pair.valueAddress.type->asAddressType());
             in_pSubroutine->callSubroutine(pPropertyClass->getDestructor(), &valueAddress, 1, 0);
         }
     }
@@ -2415,7 +2421,7 @@ Value CodeGeneratorPrivate::compileExpression(Subroutine* a_pSubroutine, Express
 Value CodeGeneratorPrivate::compileExpression(Subroutine* a_pSubroutine, Expression* a_pExpression, Value pointer,
                                               ExpressionFlags a_Flags)
 {
-    PHANTOM_ASSERT(!a_pExpression->isTemplateDependant());
+    CODEGENPRIV_ASSERT(!a_pExpression->isTemplateDependant());
     pushDebugPos(a_pSubroutine, a_pExpression);
     VisitorData data;
     const void* in[1] = {a_pSubroutine};

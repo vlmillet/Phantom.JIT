@@ -111,6 +111,7 @@ struct PHANTOM_EXPORT_PHANTOM_JIT Value
 
     bool operator==(const Value& ptr) const { return value == ptr.value; }
     bool operator!=(const Value& ptr) const { return value != ptr.value; }
+    bool operator<(Value const& _v) const { return value < _v.value; }
 
     llvm::Value* value;
     lang::Type*  type;
@@ -145,7 +146,7 @@ inline llvm::StringRef toStringRef(phantom::StringView a_View)
     return llvm::StringRef(a_View.begin(), a_View.size());
 }
 
-template<class T, size_t S>
+template<class T, uint32_t S>
 inline llvm::ArrayRef<T> toArrayRef(SmallVector<T, S> const& vec)
 {
     return llvm::ArrayRef<T>(vec.begin(), vec.end());
